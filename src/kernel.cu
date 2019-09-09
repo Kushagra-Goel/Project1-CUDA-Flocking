@@ -450,7 +450,6 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   // - Identify the grid cell that this particle is in
 
 	glm::vec3 currentCellCoords = glm::floor(glm::vec3(pos[index] - gridMin) * inverseCellWidth);
-	int cellIndex = gridIndex3Dto1D(currentCellCoords.x, currentCellCoords.y, currentCellCoords.z, gridResolution);
 
   // - Identify which cells may contain neighbors. This isn't always 8.
 	const float radius = glm::max(glm::max(rule1Distance, rule2Distance), rule3Distance);
@@ -570,7 +569,6 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 	// - Identify the grid cell that this particle is in
 
 	glm::vec3 currentCellCoords = glm::floor(glm::vec3(pos[index] - gridMin) * inverseCellWidth);
-	int cellIndex = gridIndex3Dto1D(currentCellCoords.x, currentCellCoords.y, currentCellCoords.z, gridResolution);
 
 	// - Identify which cells may contain neighbors. This isn't always 8.
 	const float radius = glm::max(glm::max(rule1Distance, rule2Distance), rule3Distance);
@@ -691,8 +689,9 @@ void Boids::stepSimulationScatteredGrid(float dt) {
   // - Unstable key sort using Thrust. A stable sort isn't necessary, but you
   //   are welcome to do a performance comparison.
 	thrust::sort_by_key(dev_thrust_particleGridIndices, dev_thrust_particleGridIndices + numObjects, dev_thrust_particleArrayIndices);
-	kernResetIntBuffer << <fullBlocksPerGrid, blockSize >> > (gridCellCount, dev_gridCellStartIndices, -1);
-	kernResetIntBuffer << <fullBlocksPerGrid, blockSize >> > (gridCellCount, dev_gridCellEndIndices, -1);
+	dim3 numOfGridBlocks((gridCellCount + blockSize - 1) / blockSize);
+	kernResetIntBuffer << <numOfGridBlocks, blockSize >> > (gridCellCount, dev_gridCellStartIndices, -1);
+	kernResetIntBuffer << <numOfGridBlocks, blockSize >> > (gridCellCount, dev_gridCellEndIndices, -1);
   // - Naively unroll the loop for finding the start and end indices of each
   //   cell's data pointers in the array of boid indices
 	kernIdentifyCellStartEnd << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
